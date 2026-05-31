@@ -1,65 +1,28 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAccount, useWalletClient } from "wagmi";
-import { useAppKit } from "@reown/appkit/react";
-import { X, AlertTriangle, CheckCircle, Loader2, Wallet } from "lucide-react";
+import { useState } from "react";
+import { X, AlertTriangle, ExternalLink, Copy, CheckCircle, BookOpen } from "lucide-react";
 import type { SignalRow } from "../hooks/useLiveData";
-import { apiRequest } from "../lib/queryClient";
-import {
-  BUILDER_ADDRESS,
-  BUILDER_FEE_TENTHS_BPS,
-} from "../lib/walletConfig";
-import {
-  getMaxBuilderFee,
-  approveBuilderFee,
-  createAgentSession,
-  placeOrder,
-  saveAgentSession,
-  loadAgentSession,
-  type AgentSession,
-} from "../lib/hyperliquid";
 
 const HL_TAKER = 0.00045;
 const CEX_TAKER = 0.00050;
-const BUILDER_FEE_BPS = BUILDER_FEE_TENTHS_BPS / 10; // display as bps
 
 interface Props {
   signal: SignalRow;
   onClose: () => void;
 }
 
-type ExecStep =
-  | "idle"
-  | "checking"
-  | "needs_approval"
-  | "approving"
-  | "needs_agent"
-  | "creating_agent"
-  | "ready"
-  | "placing"
-  | "success"
-  | "error";
-
-interface StepState {
-  step: ExecStep;
-  error?: string;
-  txHash?: string;
-  fillPrice?: number;
-}
+const CEX_URLS: Record<string, string> = {
+  okx: "https://www.okx.com/trade-swap",
+  binance: "https://www.binance.com/en/futures",
+  bybit: "https://www.bybit.com/trade/usdt",
+  gate: "https://www.gate.io/futures",
+  kucoin: "https://www.kucoin.com/futures",
+};
 
 export function ExecutionDrawer({ signal, onClose }: Props) {
   const [notional, setNotional] = useState(10000);
-  const [hlSzInput, setHlSzInput] = useState(""); // user can override size
-  const [stepState, setStepState] = useState<StepState>({ step: "idle" });
-  const [agentSession, setAgentSession] = useState<AgentSession | null>(null);
-
-  const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  const { open: openWallet } = useAppKit();
-  const qc = useQueryClient();
+  const [copied, setCopied] = useState<string | null>(null);
 
   // P&L math
-  const builderFeeUsd = notional * (BUILDER_FEE_BPS / 10000);
   const grossMonthly = notional * (signal.grossAnnualized / 100) / 12;
   const entryFeeUsd = notional * (HL_TAKER + CEX_TAKER);
   const exitFeeUsd = notional * (HL_TAKER + CEX_TAKER);
@@ -68,147 +31,66 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
   const breakevenDays = dailyCarryUsd > 0 ? totalRoundTripUsd / dailyCarryUsd : Infinity;
   const netMonthly = grossMonthly - (totalRoundTripUsd / 12);
 
-  // Estimated HL size (notional / current mark price — approximated via spreadBps)
-  // User can adjust; we default to showing notional in USD terms
-  const estimatedHlSz = hlSzInput || "market";
+  const cexName = signal.bestCexVenue.toUpperCase();
+  const cexUrl = CEX_URLS[signal.bestCexVenue] ?? `https://www.${signal.bestCexVenue}.com`;
 
-  // On open: check if we have a cached agent session
-  useEffect(() => {
-    const cached = loadAgentSession();
-    if (cached) {
-      setAgentSession(cached);
-      setStepState({ step: "ready" });
-    }
-  }, []);
-
-  // ── Step 1: Check approval & set up agent ────────────────────────────────
-  async function handleSetup() {
-    if (!isConnected || !address || !walletClient) {
-      openWallet();
-      return;
-    }
-
-    setStepState({ step: "checking" });
-    try {
-      // Check if user has already approved CarryTerm builder fee
-      const maxFee = await getMaxBuilderFee(address as `0x${string}`);
-      const needsApproval = maxFee < BUILDER_FEE_TENTHS_BPS;
-
-      if (needsApproval) {
-        setStepState({ step: "needs_approval" });
-        return;
-      }
-
-      // Builder approved — check for cached agent
-      const cached = loadAgentSession();
-      if (cached) {
-        setAgentSession(cached);
-        setStepState({ step: "ready" });
-        return;
-      }
-
-      setStepState({ step: "needs_agent" });
-    } catch (e: any) {
-      setStepState({ step: "error", error: e.message });
-    }
+  function copyText(text: string, key: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
   }
 
-  // ── Step 2: Approve builder fee ──────────────────────────────────────────
-  async function handleApproveBuilder() {
-    if (!address || !walletClient) return;
-    setStepState({ step: "approving" });
-    try {
-      await approveBuilderFee(walletClient as any, address as `0x${string}`);
-      setStepState({ step: "needs_agent" });
-    } catch (e: any) {
-      setStepState({ step: "error", error: e.message ?? "Approval rejected" });
-    }
-  }
-
-  // ── Step 3: Create session agent key ─────────────────────────────────────
-  async function handleCreateAgent() {
-    if (!address || !walletClient) return;
-    setStepState({ step: "creating_agent" });
-    try {
-      const session = await createAgentSession(walletClient as any, address as `0x${string}`);
-      saveAgentSession(session);
-      setAgentSession(session);
-      setStepState({ step: "ready" });
-    } catch (e: any) {
-      setStepState({ step: "error", error: e.message ?? "Agent creation failed" });
-    }
-  }
-
-  // ── Step 4: Place the HL short order ─────────────────────────────────────
-  const recordPosition = useMutation({
-    mutationFn: (fillPrice: number) =>
-      apiRequest("POST", "/api/positions", {
-        coin: signal.coin,
-        hlSide: "short",
-        cexSide: "long",
-        cexVenue: signal.bestCexVenue,
-        notional,
-        hlEntryPrice: fillPrice,
-        spreadAtEntry: signal.spreadBps,
-        openedAt: Date.now(),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/positions"] }),
-  });
-
-  async function handleExecute() {
-    if (!agentSession) return;
-    setStepState({ step: "placing" });
-    try {
-      const result = await placeOrder(agentSession, {
-        coin: signal.coin,
-        isBuy: false,       // SHORT the HL perp
-        sz: notional / 1000, // rough size — user should verify on HL UI
-        limitPx: 0,          // will be overridden by market slippage in placeOrder
-        isMarket: true,
-      });
-
-      if (result.status === "err") {
-        setStepState({ step: "error", error: result.error ?? "Order rejected by HL" });
-        return;
-      }
-
-      const fillPrice = result.response?.response?.data?.statuses?.[0]?.filled?.avgPx
-        ? parseFloat(result.response.response.data.statuses[0].filled.avgPx)
-        : 0;
-
-      await recordPosition.mutateAsync(fillPrice);
-      setStepState({ step: "success", fillPrice });
-    } catch (e: any) {
-      setStepState({ step: "error", error: e.message });
-    }
-  }
-
-  // ── UI helpers ────────────────────────────────────────────────────────────
-  const isLoading = ["checking", "approving", "creating_agent", "placing"].includes(stepState.step);
-
-  function StepIndicator() {
-    const steps = [
-      { label: "Connect Wallet", done: isConnected },
-      { label: "Approve Builder Fee", done: !["idle", "checking", "needs_approval", "approving"].includes(stepState.step) },
-      { label: "Create Session Key", done: ["ready", "placing", "success"].includes(stepState.step) },
-      { label: "Place HL Short", done: stepState.step === "success" },
-    ];
-    return (
-      <div className="flex items-center gap-1 mb-4">
-        {steps.map((s, i) => (
-          <div key={i} className="flex items-center gap-1">
-            <div className={[
-              "w-5 h-5 rounded-full flex items-center justify-center text-xs",
-              s.done ? "bg-green-500/20 text-green-400" : "bg-secondary text-muted-foreground",
-            ].join(" ")}>
-              {s.done ? "✓" : i + 1}
-            </div>
-            {i < steps.length - 1 && <div className="w-4 h-px bg-border" />}
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const steps = [
+    {
+      num: 1,
+      title: `Open a SHORT on Hyperliquid`,
+      exchange: "Hyperliquid",
+      url: `https://app.hyperliquid.xyz/trade/${signal.coin}`,
+      urlLabel: `Trade ${signal.coin} on HL →`,
+      detail: `Go to the ${signal.coin}-PERP market on Hyperliquid. Place a SHORT (sell) position for approximately $${notional.toLocaleString()} notional. Use a market order for immediate fill, or a limit order near the current mark price.`,
+      badge: "SHORT",
+      badgeColor: "text-red-400 bg-red-500/10 border-red-500/20",
+      copyValue: `SHORT ${signal.coin}-PERP $${notional.toLocaleString()} notional on Hyperliquid`,
+      copyKey: "hl",
+    },
+    {
+      num: 2,
+      title: `Open a LONG on ${cexName}`,
+      exchange: cexName,
+      url: cexUrl,
+      urlLabel: `Trade ${signal.coin} on ${cexName} →`,
+      detail: `Simultaneously go to ${cexName} and open a LONG (buy) position on ${signal.coin} perpetual futures for the same $${notional.toLocaleString()} notional. Both legs must be the same size to remain delta-neutral.`,
+      badge: "LONG",
+      badgeColor: "text-green-400 bg-green-500/10 border-green-500/20",
+      copyValue: `LONG ${signal.coin}-PERP $${notional.toLocaleString()} notional on ${cexName}`,
+      copyKey: "cex",
+    },
+    {
+      num: 3,
+      title: "Collect funding payments",
+      exchange: null,
+      url: null,
+      urlLabel: null,
+      detail: `Funding payments settle every 8 hours on Hyperliquid (at 00:00, 08:00, 16:00 UTC). You receive funding on the HL short leg. Monitor the spread daily — close both legs simultaneously when the spread compresses toward zero or inverts.`,
+      badge: null,
+      badgeColor: "",
+      copyValue: null,
+      copyKey: null,
+    },
+    {
+      num: 4,
+      title: "Close both legs simultaneously",
+      exchange: null,
+      url: null,
+      urlLabel: null,
+      detail: `To exit: close the HL SHORT (buy to close) and the ${cexName} LONG (sell to close) at the same time. Closing legs at different times exposes you to directional price risk. Target a hold period of at least ${isFinite(breakevenDays) ? Math.ceil(breakevenDays) : 30} days to cover round-trip fees.`,
+      badge: null,
+      badgeColor: "",
+      copyValue: null,
+      copyKey: null,
+    },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
@@ -222,7 +104,7 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
           <div>
             <h2 className="text-base font-semibold mono">{signal.coin} — Delta-Neutral Carry</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Short HL perp · Long {signal.bestCexVenue.toUpperCase()} perp
+              Short HL perp · Long {cexName} perp
             </p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground" data-testid="drawer-close">
@@ -234,7 +116,7 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
         <div className="grid grid-cols-2 gap-3">
           {[
             { label: "HL Rate/8h", value: `+${(signal.hlRate8h * 100).toFixed(4)}%`, color: "rate-positive" },
-            { label: `${signal.bestCexVenue.toUpperCase()} Rate/8h`, value: `${signal.bestCexRate8h >= 0 ? "+" : ""}${(signal.bestCexRate8h * 100).toFixed(4)}%`, color: "rate-neutral" },
+            { label: `${cexName} Rate/8h`, value: `${signal.bestCexRate8h >= 0 ? "+" : ""}${(signal.bestCexRate8h * 100).toFixed(4)}%`, color: "rate-neutral" },
             { label: "Gross Ann.", value: `+${signal.grossAnnualized.toFixed(1)}%`, color: "rate-positive" },
             { label: "Net Ann. (30d)", value: `${signal.netAnnualized > 0 ? "+" : ""}${signal.netAnnualized.toFixed(1)}%`, color: signal.netAnnualized > 0 ? "rate-positive" : "rate-negative" },
           ].map((item) => (
@@ -247,7 +129,7 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
 
         {/* Notional Input */}
         <div>
-          <label className="text-xs text-muted-foreground block mb-1.5">Notional per side (USD)</label>
+          <label className="text-xs text-muted-foreground block mb-1.5">Position size per side (USD)</label>
           <input
             type="number"
             value={notional}
@@ -256,13 +138,13 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
             data-testid="notional-input"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Total capital deployed: ${(notional * 2).toLocaleString()} (both legs)
+            Total capital deployed: ${(notional * 2).toLocaleString()} (both legs combined)
           </p>
         </div>
 
         {/* P&L Preview */}
         <div className="bg-secondary rounded p-4 space-y-2.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">P&L Preview</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">P&L Estimate</p>
           {[
             { label: "Est. gross carry/month", value: `$${grossMonthly.toFixed(0)}` },
             { label: "Round-trip fees (entry + exit)", value: `-$${totalRoundTripUsd.toFixed(0)}`, small: true },
@@ -272,7 +154,6 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
               value: "one-time fee",
               small: true,
             },
-            { label: "Builder fee (4 bps on HL fills)", value: `-$${builderFeeUsd.toFixed(2)}/mo`, small: true },
           ].map((row) => (
             <div key={row.label} className={`flex justify-between ${row.small ? "opacity-60" : ""}`}>
               <span className={`text-xs ${row.small ? "text-muted-foreground" : "text-foreground"}`}>{row.label}</span>
@@ -283,154 +164,80 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
           ))}
         </div>
 
-        {/* ── Execution Flow ── */}
+        {/* Risk Warning */}
+        <div className="flex gap-2 bg-yellow-500/8 border border-yellow-500/20 rounded p-3">
+          <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-foreground">Not financial advice.</strong> Funding rates can reverse
+            at any time. Both legs must be opened and closed simultaneously to maintain delta-neutrality.
+            Only trade capital you can afford to lose. You are solely responsible for all trading decisions.
+          </p>
+        </div>
 
-        {/* Success state */}
-        {stepState.step === "success" && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded p-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-green-400">
-              <CheckCircle className="w-4 h-4" />
-              <span className="text-xs font-semibold">HL Short Placed</span>
-            </div>
-            {stepState.fillPrice ? (
-              <p className="text-xs text-muted-foreground">
-                Filled at <span className="mono text-foreground">${stepState.fillPrice.toFixed(4)}</span>
-              </p>
-            ) : null}
-            <p className="text-xs text-muted-foreground">
-              Position recorded in ledger. Now open a{" "}
-              <strong className="text-foreground">LONG {signal.coin}</strong> on{" "}
-              <strong className="text-foreground">{signal.bestCexVenue.toUpperCase()}</strong> for $
-              {notional.toLocaleString()} notional to complete the delta-neutral trade.
-            </p>
+        {/* Step-by-step Instructions */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">How to Execute This Trade</p>
           </div>
-        )}
 
-        {/* Error state */}
-        {stepState.step === "error" && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded p-3 flex gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground">{stepState.error}</p>
+          <div className="space-y-3">
+            {steps.map((step) => (
+              <div key={step.num} className="border border-border rounded p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary">
+                      {step.num}
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">{step.title}</p>
+                  </div>
+                  {step.badge && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded border mono ${step.badgeColor}`}>
+                      {step.badge}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-muted-foreground leading-relaxed pl-7">{step.detail}</p>
+
+                <div className="flex items-center gap-2 pl-7">
+                  {step.url && (
+                    <a
+                      href={step.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      data-testid={`link-exchange-${step.num}`}
+                    >
+                      {step.urlLabel}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                  {step.copyValue && (
+                    <button
+                      onClick={() => copyText(step.copyValue!, step.copyKey!)}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      data-testid={`copy-step-${step.num}`}
+                    >
+                      {copied === step.copyKey ? (
+                        <><CheckCircle className="w-3 h-3 text-green-400" /> Copied</>
+                      ) : (
+                        <><Copy className="w-3 h-3" /> Copy details</>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Step progress indicator (shown once setup begins) */}
-        {!["idle", "success"].includes(stepState.step) && <StepIndicator />}
-
-        {/* Not connected */}
-        {!isConnected && stepState.step === "idle" && (
-          <button
-            onClick={() => openWallet()}
-            className="w-full border border-border rounded py-2.5 text-sm font-semibold mono flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-colors text-muted-foreground"
-          >
-            <Wallet className="w-4 h-4" />
-            Connect Wallet to Execute
-          </button>
-        )}
-
-        {/* Connected — idle, needs check */}
-        {isConnected && stepState.step === "idle" && (
-          <button
-            onClick={handleSetup}
-            className="w-full bg-primary text-primary-foreground rounded py-2.5 text-sm font-semibold mono hover:opacity-90 transition-opacity"
-          >
-            Prepare Execution →
-          </button>
-        )}
-
-        {/* Loading states */}
-        {isLoading && (
-          <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            {stepState.step === "checking" && "Checking on-chain approval…"}
-            {stepState.step === "approving" && "Waiting for wallet signature…"}
-            {stepState.step === "creating_agent" && "Creating session key — sign in wallet…"}
-            {stepState.step === "placing" && "Placing order on Hyperliquid…"}
-          </div>
-        )}
-
-        {/* Needs builder fee approval */}
-        {stepState.step === "needs_approval" && (
-          <div className="flex flex-col gap-3">
-            <div className="border border-border/50 rounded p-3">
-              <p className="text-xs font-medium mb-1">One-time Builder Approval Required</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                CarryTerm needs a one-time on-chain approval to attach its builder code to your fills.
-                This authorises a maximum fee of <span className="mono text-foreground">4 bps</span> per HL fill.
-                You can revoke at any time from the HL interface.
-              </p>
-            </div>
-            <button
-              onClick={handleApproveBuilder}
-              className="w-full bg-primary text-primary-foreground rounded py-2.5 text-sm font-semibold mono hover:opacity-90 transition-opacity"
-            >
-              Approve Builder Fee (4 bps)
-            </button>
-          </div>
-        )}
-
-        {/* Needs session agent */}
-        {stepState.step === "needs_agent" && (
-          <div className="flex flex-col gap-3">
-            <div className="border border-border/50 rounded p-3">
-              <p className="text-xs font-medium mb-1">Create Session Key</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Hyperliquid orders use a temporary session key (cleared when you close this tab) so you
-                don't need a wallet popup for every trade. One signature now — then orders are placed
-                instantly. The key <strong className="text-foreground">cannot withdraw funds</strong>.
-              </p>
-            </div>
-            <button
-              onClick={handleCreateAgent}
-              className="w-full bg-primary text-primary-foreground rounded py-2.5 text-sm font-semibold mono hover:opacity-90 transition-opacity"
-            >
-              Create Session Key →
-            </button>
-          </div>
-        )}
-
-        {/* Ready to execute */}
-        {stepState.step === "ready" && (
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2 bg-yellow-500/8 border border-yellow-500/20 rounded p-3">
-              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                This places a <strong className="text-foreground">MARKET SHORT</strong> on {signal.coin} on
-                Hyperliquid for approximately ${notional.toLocaleString()} notional.{" "}
-                You must <strong className="text-foreground">simultaneously open a LONG on{" "}
-                {signal.bestCexVenue.toUpperCase()}</strong> for the same notional. Failing to
-                hedge both legs creates directional price risk.
-              </p>
-            </div>
-            <button
-              onClick={handleExecute}
-              className="w-full bg-primary text-primary-foreground rounded py-2.5 text-sm font-semibold mono hover:opacity-90 transition-opacity"
-              data-testid="execute-button"
-            >
-              Place HL Short — {signal.coin} (${notional.toLocaleString()})
-            </button>
-            <p className="text-xs text-center text-muted-foreground -mt-2">
-              Builder code attached · 4 bps on fills · Position auto-recorded in ledger
-            </p>
-          </div>
-        )}
-
-        {/* Error retry */}
-        {stepState.step === "error" && (
-          <button
-            onClick={() => setStepState({ step: "idle" })}
-            className="w-full border border-border rounded py-2 text-xs text-muted-foreground hover:text-foreground transition-colors mono"
-          >
-            ← Try Again
-          </button>
-        )}
-
-        {/* Builder Code Notice */}
+        {/* Disclaimer footer */}
         <div className="border border-border/50 rounded p-3 mt-auto">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Builder code:</span> All HL fills route through{" "}
-            <span className="mono text-primary">{BUILDER_ADDRESS.slice(0, 8)}…</span> at{" "}
-            {BUILDER_FEE_BPS} bps. Accrues on-chain automatically.
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            CarryTerm provides information and analysis only. It does not execute trades, hold funds,
+            or provide investment advice. All trades are placed directly by you on third-party exchanges.
+            Past funding rates do not guarantee future results.
           </p>
         </div>
       </div>
