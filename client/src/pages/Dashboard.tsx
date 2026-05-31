@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAccount } from "wagmi";
+import { useAppKit } from "@reown/appkit/react";
 import { Logo } from "../components/Logo";
 import { StatusBar } from "../components/StatusBar";
 import { SignalScanner } from "../components/SignalScanner";
@@ -17,6 +19,24 @@ const TABS = [
 
 type Tab = (typeof TABS)[number]["id"];
 
+function WalletButton() {
+  const { address, isConnected } = useAccount();
+  const { open } = useAppKit();
+  return (
+    <button
+      onClick={() => open()}
+      className={[
+        "text-xs mono px-3 py-1.5 rounded border transition-colors",
+        isConnected
+          ? "border-green-500/40 text-green-400 bg-green-500/8 hover:bg-green-500/15"
+          : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50",
+      ].join(" ")}
+    >
+      {isConnected ? `${address?.slice(0, 6)}…${address?.slice(-4)}` : "Connect Wallet"}
+    </button>
+  );
+}
+
 export function Dashboard() {
   const [tab, setTab] = useState<Tab>("scanner");
   const liveData = useLiveData();
@@ -34,11 +54,14 @@ export function Dashboard() {
             <span className="text-muted-foreground text-xs ml-2">Hyperliquid Funding Intelligence</span>
           </div>
         </div>
-        <StatusBar
-          connected={liveData.connected}
-          lastUpdate={liveData.lastUpdate}
-          signalCount={liveData.signals.length}
-        />
+        <div className="flex items-center gap-3">
+          <StatusBar
+            connected={liveData.connected}
+            lastUpdate={liveData.lastUpdate}
+            signalCount={liveData.signals.length}
+          />
+          <WalletButton />
+        </div>
       </header>
 
       {/* Top signal banner */}

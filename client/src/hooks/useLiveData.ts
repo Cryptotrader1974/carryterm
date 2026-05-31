@@ -10,6 +10,8 @@ export interface SignalRow {
   grossAnnualized: number;
   netAnnualized: number;
   entryFeeEstimate: number;
+  roundTripPct: number;   // one-time round-trip fee in %
+  dailyCarry: number;     // gross carry in % per day
   score: number;
   timestamp: number;
 }

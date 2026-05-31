@@ -141,16 +141,24 @@ function computeSignal(
   if (cexRates.length === 0) return null;
 
   const hlRate8h = normalizeTo8h(hlRate1h, 1);
-  const best = cexRates.reduce((a, b) => (Math.abs(a.rate8h) > Math.abs(b.rate8h) ? a : b));
+  // Pick the CEX venue with the widest spread vs HL (= lowest CEX rate when both positive,
+  // highest absolute when CEX is negative — handled correctly by maximizing hlRate8h - cexRate8h)
+  const best = cexRates.reduce((a, b) => ((hlRate8h - a.rate8h) > (hlRate8h - b.rate8h) ? a : b));
 
   // We want HL funding significantly higher than CEX (short HL, long CEX)
   const spread8h = hlRate8h - best.rate8h;
   const spreadBps = spread8h * 10000;
   const grossAnnualized = spread8h * 3 * 365 * 100; // 3 periods/day * 365
 
-  // Net after round-trip fees (amortized over 30-day hold = 90 funding periods)
-  const feesAmortized = (ROUNDTRIP_FEE / 90) * 100;
-  const netAnnualized = grossAnnualized - feesAmortized * 365;
+  // Round-trip fee is a ONE-TIME cost (paid at entry + exit), not a recurring drag.
+  // For ranking/sorting purposes we annualize it assuming a 30-day hold period,
+  // but we expose the raw round-trip % so the UI can show breakeven days correctly.
+  const roundTripPct = ROUNDTRIP_FEE * 100;            // e.g. 0.19%
+  const dailyCarry = spread8h * 3 * 100;               // % carry earned per day (3 periods/day)
+  // netAnnualized = gross carry minus the fee drag assuming 30-day hold
+  // fee drag annualized = roundTrip / (30/365) = roundTrip * 365/30
+  const feeAnnualized = roundTripPct * (365 / 30);     // fee drag at 30d hold (~2.31% for 0.19% RT)
+  const netAnnualized = grossAnnualized - feeAnnualized;
 
   const score = netAnnualized; // rank by net carry
 
@@ -162,6 +170,8 @@ function computeSignal(
     spreadBps,
     grossAnnualized,
     netAnnualized,
+    roundTripPct,   // one-time cost in % (for UI breakeven calc)
+    dailyCarry,     // % per day gross (for UI breakeven calc)
     entryFeeEstimate: ROUNDTRIP_FEE * 100,
     score,
     timestamp: Date.now(),
