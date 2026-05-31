@@ -138,69 +138,180 @@ export function Dashboard() {
         )}
 
         {tab === "howto" && (
-          <div className="max-w-2xl space-y-5">
+          <div className="max-w-2xl space-y-8">
+
+            {/* ── Beginner Concepts ── */}
             <div>
-              <h1 className="text-sm font-semibold mb-1">How It Works</h1>
-              <p className="text-xs text-muted-foreground">A step-by-step guide to funding rate carry trading on Hyperliquid.</p>
+              <h1 className="text-sm font-semibold mb-0.5">New to crypto? Start here.</h1>
+              <p className="text-xs text-muted-foreground mb-4">Plain-English answers to the questions everyone has before their first trade.</p>
+
+              {[
+                {
+                  q: "What is a wallet?",
+                  a: "A crypto wallet is like a bank account you control completely — no institution holds your funds. It's a free browser extension (Rabby or MetaMask) that lets you send, receive, and sign transactions. You create it in 2 minutes and it gives you a unique address (like 0x1234…) that identifies you on-chain. No name, email, or ID required.",
+                  link: { label: "Get Rabby Wallet (recommended)", url: "https://rabby.io" },
+                },
+                {
+                  q: "What is USDC?",
+                  a: "USDC is a digital dollar — 1 USDC always equals $1 USD, guaranteed by Circle (a regulated US financial company). It's the currency used on Hyperliquid for all deposits and profits. You buy it the same way you'd buy any currency: on an exchange like Coinbase, then transfer it to your wallet.",
+                },
+                {
+                  q: "What is Arbitrum?",
+                  a: "Arbitrum is a faster, cheaper version of the Ethereum blockchain. Fees are about $0.10 per transaction instead of $20+ on mainnet. When you withdraw USDC from Coinbase to your wallet, you must select 'Arbitrum One' as the network — otherwise the funds land on the wrong chain and are harder to recover.",
+                },
+                {
+                  q: "What is Hyperliquid?",
+                  a: "Hyperliquid (HL) is a decentralized crypto exchange for trading perpetual contracts. It's not a company — it's a protocol running on its own blockchain. There's no KYC, no account creation, and no intermediary holding your funds. You connect your wallet and trade directly. It is currently geo-restricted for US residents.",
+                },
+                {
+                  q: "What is a perpetual contract (perp)?",
+                  a: "A perpetual contract lets you bet on whether a crypto asset goes up or down in price — without actually owning the asset. Unlike futures, perps never expire. To keep the perp price anchored to the real spot price, a periodic payment called a 'funding rate' flows between traders who are long (betting up) and short (betting down).",
+                },
+                {
+                  q: "What is a funding rate?",
+                  a: "Every hour on Hyperliquid, a small payment moves between long and short traders. When the funding rate is positive, longs pay shorts. When it's negative, shorts pay longs. The rate reflects how much demand there is to be long vs short. CarryTerm finds coins where HL's funding rate is meaningfully higher than the same rate on a CEX (Binance, Bybit, OKX), creating an opportunity to collect the difference.",
+                },
+                {
+                  q: "What does 'delta-neutral' mean?",
+                  a: "Delta-neutral means you have zero net exposure to the price of the asset. If you SHORT $10,000 of SOL on Hyperliquid and simultaneously LONG $10,000 of SOL on OKX, you don't care if SOL goes up or down — gains on one leg offset losses on the other. Your only profit comes from the funding rate spread between the two venues.",
+                },
+                {
+                  q: "What is a CEX?",
+                  a: "CEX stands for Centralized Exchange — platforms like Binance, Bybit, and OKX that are run by companies and require account creation. CarryTerm uses CEX funding rates as the hedge leg. You'll need an account on whichever CEX is shown as the best venue for a given signal.",
+                  link: { label: "Open an OKX account", url: "https://www.okx.com/join/carryterm" },
+                },
+              ].map(({ q, a, link }) => (
+                <div key={q} className="border border-border/60 rounded p-4 mb-3">
+                  <p className="text-xs font-semibold mb-1.5">{q}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{a}</p>
+                  {link && (
+                    <a href={link.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline mt-2 inline-block">
+                      {link.label} →
+                    </a>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {[
-              {
-                step: "1",
-                title: "Get a Wallet",
-                body: "Download Rabby Wallet (Chrome extension) or MetaMask. Create a new wallet and save your seed phrase somewhere safe. This is your on-chain identity — no email or account required.",
-              },
-              {
-                step: "2",
-                title: "Get USDC on Arbitrum",
-                body: "Buy USDC on Coinbase or any exchange. Withdraw to your wallet address and select Arbitrum One as the network — not Ethereum mainnet. Arbitrum fees are ~$0.10 vs $20+ on mainnet. Minimum recommended: $500 USDC.",
-              },
-              {
-                step: "3",
-                title: "Deposit to Hyperliquid",
-                body: "Go to app.hyperliquid.xyz (non-US residents only currently). Connect your wallet → Deposit → enter your USDC amount → confirm. Funds arrive in ~1 minute with no deposit fee. This becomes your margin for perp trading.",
-              },
-              {
-                step: "4",
-                title: "Read the Signal Scanner",
-                body: "CarryTerm shows all Hyperliquid perps ranked by net annualized carry — the yield you earn from the funding rate differential between HL and CEX venues. Green rows are high-yield opportunities. The spread column shows the raw funding rate gap in basis points.",
-              },
-              {
-                step: "5",
-                title: "Open Both Legs Simultaneously",
-                body: "A carry trade requires two positions opened at the same time: (1) SHORT the perp on Hyperliquid, and (2) LONG the same perp on the CEX venue shown (Binance, Bybit, or OKX). Both legs must be the same notional size. This makes you delta-neutral — you have no directional exposure to price.",
-              },
-              {
-                step: "6",
-                title: "Collect Funding Every 8 Hours",
-                body: "Hyperliquid pays funding every 8 hours. As a short, you receive funding when the rate is positive (longs pay shorts). The CEX leg offsets any price movement. Your net profit is the spread between HL's rate and the CEX rate, minus fees.",
-              },
-              {
-                step: "7",
-                title: "Record & Track in CarryTerm",
-                body: "Click Execute → on any signal to preview the P&L, then click Record Position to log the trade in your Position Ledger. CarryTerm tracks your open positions, estimated funding collected, and net P&L. Note: CarryTerm records trades for tracking — it does not place orders automatically. You must open both legs manually on HL and the CEX.",
-              },
-              {
-                step: "8",
-                title: "Set Alerts",
-                body: "Use the Alerts tab to create rules that notify you when spreads cross a threshold. Useful for monitoring while away from the screen — alerts fire server-side even when your browser is closed.",
-              },
-            ].map(({ step, title, body }) => (
-              <div key={step} className="bg-card border border-border rounded p-4 flex gap-4">
-                <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold mono flex-shrink-0 mt-0.5">{step}</div>
-                <div>
-                  <p className="text-xs font-semibold mb-1">{title}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
-                </div>
-              </div>
-            ))}
+            {/* ── Step by Step ── */}
+            <div>
+              <h2 className="text-sm font-semibold mb-0.5">Step-by-step setup</h2>
+              <p className="text-xs text-muted-foreground mb-4">Follow these steps in order. Budget about 30 minutes for the first time.</p>
 
+              {[
+                {
+                  step: "1",
+                  title: "Install a wallet",
+                  body: "Download Rabby Wallet as a Chrome/Brave browser extension from rabby.io. Click 'Create New Wallet', write down your 12-word seed phrase on paper and store it somewhere safe — this is the only way to recover your wallet if you lose access. Never share it with anyone or enter it into any website.",
+                  link: { label: "rabby.io", url: "https://rabby.io" },
+                },
+                {
+                  step: "2",
+                  title: "Buy USDC on Coinbase",
+                  body: "Create an account on Coinbase (US-friendly, regulated). Buy USDC — the dollar amount you want to trade with. Then go to Send → paste your Rabby wallet address → select 'Arbitrum One' as the network. Do not select 'Ethereum' or 'Base'. USDC will arrive in your wallet within a few minutes.",
+                  link: { label: "coinbase.com", url: "https://www.coinbase.com" },
+                },
+                {
+                  step: "3",
+                  title: "Deposit to Hyperliquid",
+                  body: "Go to app.hyperliquid.xyz (note: currently geo-restricted for US IP addresses). Click 'Connect Wallet' → connect Rabby → click 'Deposit' → enter your USDC amount → confirm the transaction in Rabby. Your USDC moves from Arbitrum to Hyperliquid's native chain in about 1 minute. No deposit fee.",
+                  link: { label: "app.hyperliquid.xyz", url: "https://app.hyperliquid.xyz" },
+                },
+                {
+                  step: "4",
+                  title: "Open a CEX account for the hedge leg",
+                  body: "You also need an account on the CEX shown in CarryTerm's signal — usually OKX, Binance, or Bybit. Create an account, complete KYC (ID verification), and deposit enough USDC or USDT to match your Hyperliquid position size. The two positions must be equal in notional size for the trade to be delta-neutral.",
+                  link: { label: "okx.com", url: "https://www.okx.com" },
+                },
+                {
+                  step: "5",
+                  title: "Read a signal in CarryTerm",
+                  body: "Back on CarryTerm, the Signal Scanner shows all HL perps ranked by net annualized yield. The top row is the highest-yield opportunity right now. Gross Ann. is the total spread before fees. Net Ann. (30d) accounts for entry and exit fees assuming a 30-day hold. Breakeven Hold tells you how many days until fees are recovered — after that, everything is profit.",
+                },
+                {
+                  step: "6",
+                  title: "Connect your wallet and execute the HL leg",
+                  body: "Click 'Connect Wallet' in the top-right corner. Then click 'Execute →' next to any signal. You'll see a P&L preview. On first use, two one-time wallet signatures are required: (1) approve CarryTerm's 4 bps builder fee, and (2) create a session key that signs your orders without a popup every time. Then click 'Place HL Short' — this places a market short on Hyperliquid immediately.",
+                },
+                {
+                  step: "7",
+                  title: "Immediately open the CEX long",
+                  body: "Within seconds of your HL short filling, log into your CEX account and open a LONG position on the same coin for the same dollar amount. Speed matters — every minute you're unhedged you have full price exposure. On OKX: go to Derivatives → USDT Perpetuals → search the coin → set to 'Cross' margin → buy/long at market.",
+                },
+                {
+                  step: "8",
+                  title: "Collect funding and monitor",
+                  body: "Hyperliquid pays funding every hour directly to your margin balance. You can verify this in your HL account under 'Funding History'. CarryTerm's Position Ledger tracks your estimated accumulated carry. Set an alert in the Alerts tab to notify you if the spread compresses below a threshold — that's your signal to consider closing.",
+                },
+                {
+                  step: "9",
+                  title: "Close the trade",
+                  body: "To exit: close the HL short first (buy back the position at market on HL), then immediately close the CEX long. Both legs must be closed as close to simultaneously as possible. Any gap between closures leaves you directionally exposed to price. Mark the position as closed in CarryTerm's Position Ledger to finalize your P&L.",
+                },
+              ].map(({ step, title, body, link }) => (
+                <div key={step} className="bg-card border border-border rounded p-4 flex gap-4 mb-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold mono flex-shrink-0 mt-0.5">{step}</div>
+                  <div>
+                    <p className="text-xs font-semibold mb-1">{title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+                    {link && (
+                      <a href={link.url} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline mt-1.5 inline-block">
+                        {link.label} →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Common Questions ── */}
+            <div>
+              <h2 className="text-sm font-semibold mb-0.5">Common questions</h2>
+              <p className="text-xs text-muted-foreground mb-4">Things people ask after their first trade.</p>
+
+              {[
+                {
+                  q: "What happens if I only open one leg?",
+                  a: "You are no longer delta-neutral. If you only short HL and don't open the CEX long, you have a naked short — you profit if the price falls and lose if it rises. This defeats the purpose of a carry trade and dramatically increases risk. Always open both legs before the price moves.",
+                },
+                {
+                  q: "What is a 'session key' and is it safe?",
+                  a: "A session key is a temporary private key generated in your browser that signs orders on your behalf without needing a wallet popup each time. It is authorized only to place trades — it cannot withdraw your funds. It is stored only in your browser's session memory and is permanently deleted when you close the tab. You create a new one each session.",
+                },
+                {
+                  q: "What is the 4 bps builder fee?",
+                  a: "CarryTerm charges 4 basis points (0.04%) on each Hyperliquid fill as a platform fee. This is deducted from your trading fees automatically — you pay it to Hyperliquid as part of the normal taker fee, and CarryTerm receives it on-chain. It is shown in the P&L preview before you execute so there are no surprises.",
+                },
+                {
+                  q: "Can the funding rate flip and cost me money?",
+                  a: "Yes. Funding rates change constantly. If HL's rate drops below the CEX rate, the spread inverts and you start losing carry instead of earning it. This is the primary risk of the trade. The Alerts tab lets you set a threshold so you're notified when the spread compresses — giving you time to exit before it turns negative.",
+                },
+                {
+                  q: "How much money do I need to get started?",
+                  a: "The minimum HL order size is $10, but practically speaking, fees make very small positions uneconomical. At $1,000 notional per side ($2,000 total), a 13% gross yield earns about $11/month — against a $19 round-trip fee. Breakeven is around 50 days. $5,000–$10,000 per side is a more realistic starting point where the math works comfortably.",
+                },
+                {
+                  q: "How do I know the trade is working?",
+                  a: "After each hourly funding settlement on HL, your margin balance should increase slightly (you can check under Funding History on the HL app). On the CEX side, your funding is also accruing in your position PnL. CarryTerm's Position Ledger estimates this for you based on the rate at entry, but checking the actual HL funding history is the ground truth.",
+                },
+              ].map(({ q, a }) => (
+                <div key={q} className="border border-border/60 rounded p-4 mb-3">
+                  <p className="text-xs font-semibold mb-1.5">{q}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{a}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Risk Warning ── */}
             <div className="bg-yellow-500/8 border border-yellow-500/20 rounded p-4">
               <p className="text-xs font-semibold text-yellow-400 mb-1">Risk Warning</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Funding rates can invert — HL rate can drop below the CEX rate, making the trade unprofitable. Slippage on entry/exit may exceed estimates. Leverage amplifies both gains and losses. Never trade more than you can afford to lose. This tool is for monitoring and record-keeping only — not financial advice.
+                Funding rates can invert at any time, making the trade unprofitable. Slippage on entry and exit may exceed estimates, particularly in volatile markets. Executing legs at different times creates temporary directional exposure. Smart contract and exchange counterparty risk exist on both legs. This tool is for informational purposes only and is not financial advice. Never trade more than you can afford to lose entirely.
               </p>
             </div>
+
           </div>
         )}
 
