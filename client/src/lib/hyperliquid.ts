@@ -100,6 +100,8 @@ export async function approveBuilderFee(walletClient: WalletClient, userAddress:
   const ts = nonce();
   const action = {
     type: "approveBuilderFee",
+    hyperliquidChain: "Mainnet",
+    signatureChainId: "0xa4b1",  // Arbitrum
     maxFeeRate: `${BUILDER_FEE_TENTHS_BPS}`,
     builder: BUILDER_ADDRESS,
     nonce: ts,
@@ -110,7 +112,7 @@ export async function approveBuilderFee(walletClient: WalletClient, userAddress:
     domain: AGENT_DOMAIN,
     types: {
       "HyperliquidTransaction:ApproveBuilderFee": [
-        { name: "hyperliquidChainName", type: "string" },
+        { name: "hyperliquidChain", type: "string" },
         { name: "maxFeeRate", type: "string" },
         { name: "builder", type: "address" },
         { name: "nonce", type: "uint64" },
@@ -118,7 +120,7 @@ export async function approveBuilderFee(walletClient: WalletClient, userAddress:
     },
     primaryType: "HyperliquidTransaction:ApproveBuilderFee",
     message: {
-      hyperliquidChainName: "Mainnet",
+      hyperliquidChain: "Mainnet",
       maxFeeRate: `${BUILDER_FEE_TENTHS_BPS}`,
       builder: BUILDER_ADDRESS,
       nonce: BigInt(ts),
@@ -130,7 +132,7 @@ export async function approveBuilderFee(walletClient: WalletClient, userAddress:
   const vHex = sig.slice(130, 132);
   const v = parseInt(vHex, 16);
 
-  await fetch(`${HL_API}/exchange`, {
+  const bfResp = await fetch(`${HL_API}/exchange`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -139,6 +141,10 @@ export async function approveBuilderFee(walletClient: WalletClient, userAddress:
       signature: { r, s, v },
     }),
   });
+  const bfText = await bfResp.text();
+  let bfData: any;
+  try { bfData = JSON.parse(bfText); } catch { throw new Error(`Builder approval error: ${bfText.slice(0, 120)}`); }
+  if (bfData?.status === "err") throw new Error(bfData.response ?? "Builder approval failed");
 }
 
 // ── 3. Approve agent / create session key ────────────────────────────────────
@@ -153,7 +159,7 @@ export async function createAgentSession(walletClient: WalletClient, userAddress
     domain: AGENT_DOMAIN,
     types: {
       "HyperliquidTransaction:ApproveAgent": [
-        { name: "hyperliquidChainName", type: "string" },
+        { name: "hyperliquidChain", type: "string" },
         { name: "agentAddress", type: "address" },
         { name: "agentName", type: "string" },
         { name: "nonce", type: "uint64" },
@@ -161,7 +167,7 @@ export async function createAgentSession(walletClient: WalletClient, userAddress
     },
     primaryType: "HyperliquidTransaction:ApproveAgent",
     message: {
-      hyperliquidChainName: "Mainnet",
+      hyperliquidChain: "Mainnet",
       agentAddress: agentAccount.address,
       agentName: "CarryTerm",
       nonce: BigInt(ts),
@@ -172,13 +178,14 @@ export async function createAgentSession(walletClient: WalletClient, userAddress
   const s = `0x${sig.slice(66, 130)}` as Hex;
   const v = parseInt(sig.slice(130, 132), 16);
 
-  const resp = await fetch(`${HL_API}/exchange`, {
+  const rawResp = await fetch(`${HL_API}/exchange`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: {
         type: "approveAgent",
-        hyperliquidChainName: "Mainnet",
+        hyperliquidChain: "Mainnet",
+        signatureChainId: "0xa4b1",
         agentAddress: agentAccount.address,
         agentName: "CarryTerm",
         nonce: ts,
@@ -188,7 +195,9 @@ export async function createAgentSession(walletClient: WalletClient, userAddress
     }),
   });
 
-  const data = await resp.json();
+  let data: any;
+  const rawText = await rawResp.text();
+  try { data = JSON.parse(rawText); } catch { throw new Error(`HL agent error: ${rawText.slice(0, 120)}`); }
   if (data?.status === "err") throw new Error(data.response ?? "Agent approval failed");
 
   return { privateKey: pk, address: agentAccount.address };
