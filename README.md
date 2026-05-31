@@ -4,7 +4,7 @@
 
 Ranks every Hyperliquid perpetual by net annualized yield from a delta-neutral carry trade — short HL, long the best CEX venue — updated every 30 seconds.
 
-🔗 **[Live app → http://159.203.182.234](http://159.203.182.234)**
+🔗 **[Live app → http://206.189.189.157](http://206.189.189.157)**
 
 ---
 
@@ -26,7 +26,7 @@ CarryTerm monitors all 230+ Hyperliquid perps against Binance, Bybit, and OKX in
 | ETH  | +3.9%  | +3.2%  | +0.36 bps | +0.0100%/8h | +0.0064%/8h | OKX |
 | SOL  | +3.7%  | +2.9%  | +0.34 bps | +0.0100%/8h | +0.0066%/8h | OKX |
 
-*Data from [CarryTerm live app](http://159.203.182.234) · Updated daily · Rates change constantly — check the app for current values*
+*Data from [CarryTerm live app](http://206.189.189.157) · Updated daily · Rates change constantly — check the app for current values*
 
 ---
 
