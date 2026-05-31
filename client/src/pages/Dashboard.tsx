@@ -5,12 +5,13 @@ import { SignalScanner } from "../components/SignalScanner";
 import { PositionLedger } from "../components/PositionLedger";
 import { AlertsPanel } from "../components/AlertsPanel";
 import { useLiveData } from "../hooks/useLiveData";
-import { BarChart2, Briefcase, Bell, Info } from "lucide-react";
+import { BarChart2, Briefcase, Bell, Info, BookOpen } from "lucide-react";
 
 const TABS = [
   { id: "scanner", label: "Signal Scanner", icon: BarChart2 },
   { id: "positions", label: "Position Ledger", icon: Briefcase },
   { id: "alerts", label: "Alerts", icon: Bell },
+  { id: "howto", label: "How It Works", icon: BookOpen },
   { id: "info", label: "About", icon: Info },
 ] as const;
 
@@ -110,6 +111,73 @@ export function Dashboard() {
               <p className="text-xs text-muted-foreground mt-0.5">Server-side alerts fire even when the browser is closed · 15-minute cooldown per rule</p>
             </div>
             <AlertsPanel />
+          </div>
+        )}
+
+        {tab === "howto" && (
+          <div className="max-w-2xl space-y-5">
+            <div>
+              <h1 className="text-sm font-semibold mb-1">How It Works</h1>
+              <p className="text-xs text-muted-foreground">A step-by-step guide to funding rate carry trading on Hyperliquid.</p>
+            </div>
+
+            {[
+              {
+                step: "1",
+                title: "Get a Wallet",
+                body: "Download Rabby Wallet (Chrome extension) or MetaMask. Create a new wallet and save your seed phrase somewhere safe. This is your on-chain identity — no email or account required.",
+              },
+              {
+                step: "2",
+                title: "Get USDC on Arbitrum",
+                body: "Buy USDC on Coinbase or any exchange. Withdraw to your wallet address and select Arbitrum One as the network — not Ethereum mainnet. Arbitrum fees are ~$0.10 vs $20+ on mainnet. Minimum recommended: $500 USDC.",
+              },
+              {
+                step: "3",
+                title: "Deposit to Hyperliquid",
+                body: "Go to app.hyperliquid.xyz (non-US residents only currently). Connect your wallet → Deposit → enter your USDC amount → confirm. Funds arrive in ~1 minute with no deposit fee. This becomes your margin for perp trading.",
+              },
+              {
+                step: "4",
+                title: "Read the Signal Scanner",
+                body: "CarryTerm shows all Hyperliquid perps ranked by net annualized carry — the yield you earn from the funding rate differential between HL and CEX venues. Green rows are high-yield opportunities. The spread column shows the raw funding rate gap in basis points.",
+              },
+              {
+                step: "5",
+                title: "Open Both Legs Simultaneously",
+                body: "A carry trade requires two positions opened at the same time: (1) SHORT the perp on Hyperliquid, and (2) LONG the same perp on the CEX venue shown (Binance, Bybit, or OKX). Both legs must be the same notional size. This makes you delta-neutral — you have no directional exposure to price.",
+              },
+              {
+                step: "6",
+                title: "Collect Funding Every 8 Hours",
+                body: "Hyperliquid pays funding every 8 hours. As a short, you receive funding when the rate is positive (longs pay shorts). The CEX leg offsets any price movement. Your net profit is the spread between HL's rate and the CEX rate, minus fees.",
+              },
+              {
+                step: "7",
+                title: "Record & Track in CarryTerm",
+                body: "Click Execute → on any signal to preview the P&L, then click Record Position to log the trade in your Position Ledger. CarryTerm tracks your open positions, estimated funding collected, and net P&L. Note: CarryTerm records trades for tracking — it does not place orders automatically. You must open both legs manually on HL and the CEX.",
+              },
+              {
+                step: "8",
+                title: "Set Alerts",
+                body: "Use the Alerts tab to create rules that notify you when spreads cross a threshold. Useful for monitoring while away from the screen — alerts fire server-side even when your browser is closed.",
+              },
+            ].map(({ step, title, body }) => (
+              <div key={step} className="bg-card border border-border rounded p-4 flex gap-4">
+                <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold mono flex-shrink-0 mt-0.5">{step}</div>
+                <div>
+                  <p className="text-xs font-semibold mb-1">{title}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+                </div>
+              </div>
+            ))}
+
+            <div className="bg-yellow-500/8 border border-yellow-500/20 rounded p-4">
+              <p className="text-xs font-semibold text-yellow-400 mb-1">Risk Warning</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Funding rates can invert — HL rate can drop below the CEX rate, making the trade unprofitable. Slippage on entry/exit may exceed estimates. Leverage amplifies both gains and losses. Never trade more than you can afford to lose. This tool is for monitoring and record-keeping only — not financial advice.
+              </p>
+            </div>
           </div>
         )}
 
