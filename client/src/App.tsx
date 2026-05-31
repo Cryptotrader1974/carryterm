@@ -6,6 +6,7 @@ import { queryClient } from "./lib/queryClient";
 import { wagmiConfig } from "./lib/walletConfig";
 import { Dashboard } from "./pages/Dashboard";
 import { Toaster } from "@/components/ui/toaster";
+import { DisclaimerModal } from "./components/DisclaimerModal";
 
 // Import walletConfig for side-effect: initialises AppKit modal singleton
 import "./lib/walletConfig";
@@ -25,6 +26,7 @@ export default function App() {
           </Switch>
         </Router>
         <Toaster />
+        <DisclaimerModal />
       </QueryClientProvider>
     </WagmiProvider>
   );
