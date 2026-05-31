@@ -1,0 +1,17 @@
+[Unit]
+Description=CarryTerm Discord Bot
+After=network.target carryterm.service
+Requires=carryterm.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/carryterm/bot
+ExecStart=/usr/bin/node discord-bot.js
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/carryterm-bot.log
+StandardError=append:/var/log/carryterm-bot.log
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
