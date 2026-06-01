@@ -197,7 +197,7 @@ export const storage = new SQLiteStorage();
 // ── Waitlist ──────────────────────────────────────────────────────────────────
 export function addWaitlistEntry(email: string, country: string): boolean {
   try {
-    db.prepare(
+    sqlite.prepare(
       `INSERT OR IGNORE INTO waitlist (email, country, tier, price_point, signed_up_at, notified)
        VALUES (?, ?, 'pro', '$49/month', ?, 0)`
     ).run(email.toLowerCase().trim(), country.trim(), Date.now());
@@ -208,10 +208,10 @@ export function addWaitlistEntry(email: string, country: string): boolean {
 }
 
 export function getWaitlistEntries(): any[] {
-  return db.prepare(`SELECT * FROM waitlist ORDER BY signed_up_at DESC`).all();
+  return sqlite.prepare(`SELECT * FROM waitlist ORDER BY signed_up_at DESC`).all() as any[];
 }
 
 export function getWaitlistCount(): number {
-  const row = db.prepare(`SELECT COUNT(*) as count FROM waitlist`).get() as any;
+  const row = sqlite.prepare(`SELECT COUNT(*) as count FROM waitlist`).get() as any;
   return row?.count ?? 0;
 }
