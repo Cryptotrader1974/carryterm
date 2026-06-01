@@ -193,3 +193,25 @@ class SQLiteStorage implements IStorage {
 }
 
 export const storage = new SQLiteStorage();
+
+// ── Waitlist ──────────────────────────────────────────────────────────────────
+export function addWaitlistEntry(email: string, country: string): boolean {
+  try {
+    db.prepare(
+      `INSERT OR IGNORE INTO waitlist (email, country, tier, price_point, signed_up_at, notified)
+       VALUES (?, ?, 'pro', '$49/month', ?, 0)`
+    ).run(email.toLowerCase().trim(), country.trim(), Date.now());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getWaitlistEntries(): any[] {
+  return db.prepare(`SELECT * FROM waitlist ORDER BY signed_up_at DESC`).all();
+}
+
+export function getWaitlistCount(): number {
+  const row = db.prepare(`SELECT COUNT(*) as count FROM waitlist`).get() as any;
+  return row?.count ?? 0;
+}

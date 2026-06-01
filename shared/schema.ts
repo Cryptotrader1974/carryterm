@@ -89,3 +89,20 @@ export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type FundingRate = typeof fundingRates.$inferSelect;
 export type Signal = typeof signals.$inferSelect;
 export type FundingReceipt = typeof fundingReceipts.$inferSelect;
+
+// ── Waitlist ──────────────────────────────────────────────────────────────────
+export const waitlist = sqliteTable("waitlist", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  country: text("country").notNull(),
+  tier: text("tier").notNull().default("pro"), // 'pro'
+  pricePoint: text("price_point").notNull().default("$49/month"),
+  signedUpAt: integer("signed_up_at").notNull(),
+  notified: integer("notified").notNull().default(0),
+});
+
+export const insertWaitlistSchema = createInsertSchema(waitlist).omit({
+  id: true, notified: true,
+});
+export type WaitlistEntry = typeof waitlist.$inferSelect;
+export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;

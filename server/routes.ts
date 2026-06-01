@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage.js";
+import { addWaitlistEntry, getWaitlistEntries, getWaitlistCount } from "./storage.js";
 import { getLatestData, pollAll } from "./ingestion.js";
 import { insertPositionSchema, insertAlertSchema } from "@shared/schema";
 import { z } from "zod";
@@ -130,4 +131,30 @@ export function registerRoutes(httpServer: Server, app: Express) {
     await pollAll();
     res.json({ success: true, timestamp: Date.now() });
   });
+
+  // ── Waitlist ─────────────────────────────────────────────────────────────────
+  app.post("/api/waitlist", (req, res) => {
+    const { email, country } = req.body ?? {};
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ error: "Valid email required" });
+    }
+    if (!country || typeof country !== "string") {
+      return res.status(400).json({ error: "Country required" });
+    }
+    const added = addWaitlistEntry(email, country);
+    const count = getWaitlistCount();
+    return res.json({ success: true, alreadyExists: !added, position: count });
+  });
+
+  app.get("/api/waitlist/count", (_req, res) => {
+    const count = getWaitlistCount();
+    return res.json({ count });
+  });
+
+  // Admin endpoint — returns full list (no auth needed for now, obscure URL)
+  app.get("/api/admin/waitlist-x9k2", (_req, res) => {
+    const entries = getWaitlistEntries();
+    return res.json({ count: entries.length, entries });
+  });
+
 }
