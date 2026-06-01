@@ -112,9 +112,9 @@ export function SignalScanner({ signals }: Props) {
                     <button
                       className="text-xs text-primary hover:underline mono"
                       onClick={() => setSelected(sig)}
-                      data-testid={`execute-${sig.coin}`}
+                      data-testid={`tradeguide-${sig.coin}`}
                     >
-                      Execute →
+                      Trade Guide →
                     </button>
                   </td>
                 </tr>

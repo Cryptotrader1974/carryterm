@@ -210,8 +210,9 @@ export function Dashboard() {
                 },
                 {
                   step: "6",
-                  title: "Connect your wallet and execute the HL leg",
-                  body: "Click 'Connect Wallet' in the top-right corner. Then click 'Execute →' next to any signal. You'll see a P&L preview. On first use, two one-time wallet signatures are required: (1) approve CarryTerm's 4 bps builder fee, and (2) create a session key that signs your orders without a popup every time. Then click 'Place HL Short' — this places a market short on Hyperliquid immediately.",
+                  title: "Open the HL short leg",
+                  body: "Go to app.hyperliquid.xyz, find the coin shown in the CarryTerm signal, and open a SHORT (sell) perpetual position for your chosen notional amount. Use a market order for immediate fill. Note the exact fill price and size.",
+                  link: { label: "app.hyperliquid.xyz", url: "https://app.hyperliquid.xyz" },
                 },
                 {
                   step: "7",
@@ -225,8 +226,8 @@ export function Dashboard() {
                 },
                 {
                   step: "9",
-                  title: "Close the trade",
-                  body: "To exit: close the HL short first (buy back the position at market on HL), then immediately close the CEX long. Both legs must be closed as close to simultaneously as possible. Any gap between closures leaves you directionally exposed to price. Mark the position as closed in CarryTerm's Position Ledger to finalize your P&L.",
+                  title: "Close both legs simultaneously",
+                  body: "To exit: close the HL short (buy to close on HL) and the CEX long (sell to close on your CEX) as close to simultaneously as possible. Any gap between closures leaves you directionally exposed to price. Record your final P&L in the Position Ledger for tracking.",
                 },
               ].map(({ step, title, body, link }) => (
                 <div key={step} className="bg-card border border-border rounded p-4 flex gap-4 mb-3">
@@ -256,14 +257,6 @@ export function Dashboard() {
                   a: "You are no longer delta-neutral. If you only short HL and don't open the CEX long, you have a naked short — you profit if the price falls and lose if it rises. This defeats the purpose of a carry trade and dramatically increases risk. Always open both legs before the price moves.",
                 },
                 {
-                  q: "What is a 'session key' and is it safe?",
-                  a: "A session key is a temporary private key generated in your browser that signs orders on your behalf without needing a wallet popup each time. It is authorized only to place trades — it cannot withdraw your funds. It is stored only in your browser's session memory and is permanently deleted when you close the tab. You create a new one each session.",
-                },
-                {
-                  q: "What is the 4 bps builder fee?",
-                  a: "CarryTerm charges 4 basis points (0.04%) on each Hyperliquid fill as a platform fee. This is deducted from your trading fees automatically — you pay it to Hyperliquid as part of the normal taker fee, and CarryTerm receives it on-chain. It is shown in the P&L preview before you execute so there are no surprises.",
-                },
-                {
                   q: "Can the funding rate flip and cost me money?",
                   a: "Yes. Funding rates change constantly. If HL's rate drops below the CEX rate, the spread inverts and you start losing carry instead of earning it. This is the primary risk of the trade. The Alerts tab lets you set a threshold so you're notified when the spread compresses — giving you time to exit before it turns negative.",
                 },
@@ -287,7 +280,7 @@ export function Dashboard() {
             <div className="bg-yellow-500/8 border border-yellow-500/20 rounded p-4">
               <p className="text-xs font-semibold text-yellow-400 mb-1">Risk Warning</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Funding rates can invert at any time, making the trade unprofitable. Slippage on entry and exit may exceed estimates, particularly in volatile markets. Executing legs at different times creates temporary directional exposure. Smart contract and exchange counterparty risk exist on both legs. This tool is for informational purposes only and is not financial advice. Never trade more than you can afford to lose entirely.
+                Funding rates can invert at any time, making the trade unprofitable. Slippage on entry and exit may exceed estimates, particularly in volatile markets. Smart contract and exchange counterparty risk exist on both legs. This tool is for informational purposes only and is not financial advice. Never trade more than you can afford to lose entirely.
               </p>
             </div>
 
@@ -304,14 +297,16 @@ export function Dashboard() {
             </div>
 
             <div className="bg-card border border-border rounded p-4 space-y-3">
-              <p className="text-xs font-medium">Builder Code</p>
+              <p className="text-xs font-medium">Signal Methodology</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <span className="text-muted-foreground">Builder Address</span>
-                <span className="mono text-primary break-all">0x12e07604360EF08FA8C40D93eD024CC6E69BeE68</span>
-                <span className="text-muted-foreground">Fee Rate</span>
-                <span className="mono">4 bps (0.04%) on all HL fills</span>
-                <span className="text-muted-foreground">Collection</span>
-                <span className="mono">On-chain, automatic</span>
+                <span className="text-muted-foreground">Spread calculation</span>
+                <span className="mono">HL rate − best CEX rate (8h equiv.)</span>
+                <span className="text-muted-foreground">Fee model</span>
+                <span className="mono">HL taker 4.5bps + CEX taker 5bps × 2</span>
+                <span className="text-muted-foreground">Annualization</span>
+                <span className="mono">8h rate × 3 × 365 × 100</span>
+                <span className="text-muted-foreground">Net yield basis</span>
+                <span className="mono">30-day hold assumption</span>
               </div>
             </div>
 

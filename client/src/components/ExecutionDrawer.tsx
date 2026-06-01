@@ -97,7 +97,7 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
       <div
         className="w-full max-w-md bg-card border-l border-border h-full overflow-y-auto p-6 flex flex-col gap-5"
         onClick={(e) => e.stopPropagation()}
-        data-testid="execution-drawer"
+        data-testid="trade-guide-drawer"
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -178,7 +178,7 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">How to Execute This Trade</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">How to Place This Trade</p>
           </div>
 
           <div className="space-y-3">
@@ -235,7 +235,7 @@ export function ExecutionDrawer({ signal, onClose }: Props) {
         {/* Disclaimer footer */}
         <div className="border border-border/50 rounded p-3 mt-auto">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            CarryTerm provides information and analysis only. It does not execute trades, hold funds,
+            CarryTerm provides information and analysis only. It does not execute trades, hold funds, custody assets,
             or provide investment advice. All trades are placed directly by you on third-party exchanges.
             Past funding rates do not guarantee future results.
           </p>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, Shield, ExternalLink } from "lucide-react";
+import { AlertTriangle, Shield } from "lucide-react";
 
-const STORAGE_KEY = "carryterm_disclaimer_v1";
+const STORAGE_KEY = "carryterm_disclaimer_v2";
 
 export function DisclaimerModal() {
   const [visible, setVisible] = useState(false);
@@ -9,7 +9,7 @@ export function DisclaimerModal() {
     notUS: false,
     notAdvice: false,
     riskUnderstood: false,
-    builderFee: false,
+    ownDecisions: false,
   });
 
   useEffect(() => {
@@ -54,50 +54,45 @@ export function DisclaimerModal() {
           <div className="bg-yellow-500/8 border border-yellow-500/25 rounded-md px-4 py-3 space-y-1">
             <p className="text-xs font-semibold text-yellow-400 uppercase tracking-wide">High Risk Activity</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Crypto derivatives trading involves substantial risk of loss. Funding rates can flip direction rapidly,
-              positions can be liquidated, and smart contract vulnerabilities may result in total loss of funds.
+              Crypto derivatives trading involves substantial risk of loss. Funding rates can flip direction
+              rapidly, positions can be liquidated, and you may lose all capital deployed.
               Only trade with capital you can afford to lose entirely.
             </p>
           </div>
 
-          {/* Full disclaimer text */}
+          {/* Disclaimer text */}
           <div className="space-y-3 text-xs text-muted-foreground leading-relaxed">
             <p>
-              <strong className="text-foreground">Not Financial Advice.</strong>{" "}
-              CarryTerm is an informational tool only. All signals, spreads, and yield calculations displayed are
-              for educational and research purposes. Nothing on this platform constitutes financial, investment,
-              or trading advice. You are solely responsible for your own trading decisions.
+              <strong className="text-foreground">Informational Tool Only.</strong>{" "}
+              CarryTerm is a market data aggregation and analysis tool. All signals, spreads, and yield
+              calculations displayed are for educational and research purposes only. Nothing on this
+              platform constitutes financial, investment, or trading advice of any kind.
             </p>
             <p>
               <strong className="text-foreground">No Guarantee of Profit.</strong>{" "}
               Historical funding rate spreads do not predict future performance. Displayed rates may change
-              significantly between the time of calculation and trade execution. CarryTerm makes no
-              representation that any strategy will be profitable.
+              significantly at any time. CarryTerm makes no representation that any strategy will be
+              profitable. Past data is not indicative of future results.
             </p>
             <p>
               <strong className="text-foreground">Geographic Restrictions.</strong>{" "}
-              Hyperliquid and certain other exchanges referenced on this platform are not available to persons
-              located in the United States or other restricted jurisdictions. By using this platform, you
-              confirm you are not a US person and are not accessing the platform from a restricted jurisdiction.
-              It is your sole responsibility to ensure compliance with the laws of your jurisdiction.
+              Hyperliquid and certain other exchanges referenced on this platform are not available to
+              persons located in the United States or other restricted jurisdictions. By using this
+              platform, you confirm you are not a US person and are not accessing from a restricted
+              jurisdiction. You are solely responsible for compliance with the laws of your jurisdiction.
             </p>
             <p>
-              <strong className="text-foreground">Wallet &amp; Execution Risk.</strong>{" "}
-              When you connect your wallet and execute trades through CarryTerm, you retain full custody of
-              your funds at all times. CarryTerm never holds, custodies, or controls your assets. All on-chain
-              transactions are irreversible. Verify all trade parameters carefully before signing any transaction.
-            </p>
-            <p>
-              <strong className="text-foreground">Builder Fee Disclosure.</strong>{" "}
-              CarryTerm charges a 4 basis point (0.04%) builder fee on trades executed through this interface.
-              This fee is collected by the protocol automatically and is in addition to any exchange fees charged
-              by Hyperliquid or other venues. This disclosure is made pursuant to Hyperliquid's builder code policy.
+              <strong className="text-foreground">Independent Decisions.</strong>{" "}
+              All trades are placed directly by you on third-party exchanges entirely outside of this
+              platform. CarryTerm does not execute trades, hold funds, custody assets, or act as an
+              intermediary in any transaction. You make all trading decisions independently and bear
+              full responsibility for all outcomes.
             </p>
             <p>
               <strong className="text-foreground">No Liability.</strong>{" "}
-              CarryTerm and its operators shall not be liable for any trading losses, missed opportunities,
-              liquidations, technical failures, or any other damages arising from use of this platform.
-              Use at your own risk.
+              CarryTerm and its operators shall not be liable for any trading losses, missed
+              opportunities, liquidations, technical failures, data inaccuracies, or any other damages
+              arising from your use of this platform. Use entirely at your own risk.
             </p>
           </div>
 
@@ -110,15 +105,15 @@ export function DisclaimerModal() {
               },
               {
                 key: "notAdvice" as const,
-                label: "I understand that CarryTerm does not provide financial advice and all signals are informational only.",
+                label: "I understand CarryTerm provides market data only — not financial advice — and I will not rely on it as such.",
               },
               {
                 key: "riskUnderstood" as const,
-                label: "I understand the risks involved in crypto derivatives trading and may lose all capital deployed.",
+                label: "I understand crypto derivatives trading involves substantial risk and I may lose all capital deployed.",
               },
               {
-                key: "builderFee" as const,
-                label: "I acknowledge that a 4 bps builder fee is charged on trades executed through CarryTerm.",
+                key: "ownDecisions" as const,
+                label: "I confirm all trading decisions are mine alone. CarryTerm does not execute trades or hold my funds.",
               },
             ].map(({ key, label }) => (
               <label
@@ -133,14 +128,10 @@ export function DisclaimerModal() {
                     onChange={(e) => setChecked((prev) => ({ ...prev, [key]: e.target.checked }))}
                     data-testid={`checkbox-${key}`}
                   />
-                  <div
-                    className={[
-                      "w-4 h-4 rounded border flex items-center justify-center transition-colors",
-                      checked[key]
-                        ? "bg-primary border-primary"
-                        : "border-border bg-background",
-                    ].join(" ")}
-                  >
+                  <div className={[
+                    "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                    checked[key] ? "bg-primary border-primary" : "border-border bg-background",
+                  ].join(" ")}>
                     {checked[key] && (
                       <svg className="w-2.5 h-2.5 text-primary-foreground" fill="none" viewBox="0 0 12 12">
                         <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -152,14 +143,13 @@ export function DisclaimerModal() {
               </label>
             ))}
           </div>
-
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Shield className="w-3.5 h-3.5" />
-            <span>Your acknowledgment is stored locally only</span>
+            <span>Acknowledgment stored locally only</span>
           </div>
           <button
             onClick={handleAgree}
